@@ -1,4 +1,5 @@
 import { Socket } from "socket.io";
+import { RoomManager } from "./RoomManager";
 
 export type User = {
   name: string;
@@ -6,6 +7,8 @@ export type User = {
 };
 
 export type Queue = String;
+
+const { createRoom, onAnswer, onIceCandidates, onOffer } = RoomManager();
 
 export function UserManager() {
   let users: User[] = [];
@@ -22,6 +25,8 @@ export function UserManager() {
     socket.emit("lobby");
 
     clearQueue();
+
+    initHandlers(socket);
   }
 
   function removeUser(socketId: string) {
@@ -43,5 +48,23 @@ export function UserManager() {
     if (!user1 || !user2) {
       return;
     }
+
+    const room = createRoom(user1, user2);
+    clearQueue();
   }
+
+  function initHandlers(socket: Socket) {
+    socket.on("offer", ({ sdp, roomId }) => {
+      onOffer(roomId, sdp, socket.id);
+    });
+
+    socket.on("answer", ({ sdp, roomId }) => {
+      onAnswer(roomId, sdp, socket.id);
+    });
+    socket.on("add-ice-candidate", ({ candidate, roomId, type }) => {
+      onIceCandidates(roomId, socket.id, candidate, type);
+    });
+  }
+
+  return { addUser, removeUser };
 }
